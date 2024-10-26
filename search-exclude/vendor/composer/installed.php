@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'quadlayers/search-exclude',
-        'pretty_version' => 'v2.1.5',
-        'version' => '2.1.5.0',
-        'reference' => 'a56a04440e00d8426522fa457c7a7a23f6f6d93b',
+        'pretty_version' => 'v2.1.7',
+        'version' => '2.1.7.0',
+        'reference' => 'e669003e5041324fdf290603b3fe2231081fcd7a',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         'automattic/jetpack-assets' => array(
-            'pretty_version' => 'v2.3.8',
-            'version' => '2.3.8.0',
-            'reference' => '3ddaff78c82ed7663b61961356585061dbb3410a',
+            'pretty_version' => 'v2.3.10',
+            'version' => '2.3.10.0',
+            'reference' => '8e6e9e0980ba6a4d4820ebb311c993adff4ed961',
             'type' => 'jetpack-library',
             'install_path' => __DIR__ . '/../../jetpack_vendor/automattic/jetpack-assets',
             'aliases' => array(),
@@ -38,18 +38,20 @@
             'dev_requirement' => false,
         ),
         'franmastromarino/wp-orm' => array(
-            'pretty_version' => 'dev-dev-refactor',
-            'version' => 'dev-dev-refactor',
-            'reference' => '7c5a62368473dca16c667e942ba812ec3f6e30e7',
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => 'dfec8095b65a507e19ff377d976c596ba13e4f27',
             'type' => 'library',
             'install_path' => __DIR__ . '/../franmastromarino/wp-orm',
-            'aliases' => array(),
+            'aliases' => array(
+                0 => '9999999-dev',
+            ),
             'dev_requirement' => false,
         ),
         'quadlayers/search-exclude' => array(
-            'pretty_version' => 'v2.1.5',
-            'version' => '2.1.5.0',
-            'reference' => 'a56a04440e00d8426522fa457c7a7a23f6f6d93b',
+            'pretty_version' => 'v2.1.7',
+            'version' => '2.1.7.0',
+            'reference' => 'e669003e5041324fdf290603b3fe2231081fcd7a',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

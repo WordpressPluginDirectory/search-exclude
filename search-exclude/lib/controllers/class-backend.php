@@ -4,6 +4,8 @@ namespace QuadLayers\QLSE\Controllers;
 
 use QuadLayers\QLSE\Models\Settings as Models_Settings;
 use QuadLayers\QLSE\Helpers;
+use QuadLayers\QLSE\Api\Entities\Settings\Get as API_Settings_Get;
+
 
 /**
  * Backend Class
@@ -16,14 +18,15 @@ class Backend {
 		/**
 		 * Admin scripts
 		 */
-		add_action( 'admin_print_scripts-edit.php', array( $this, 'enqueue_scripts' ) );
+
+		add_action( 'admin_enqueue_scripts', array( $this, 'register_scripts' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_style' ) );
 		/**
 		* Admin menu
 		*/
 		add_action( 'admin_notices', array( $this, 'bulk_action_notices' ) );
 		add_action( 'admin_init', array( $this, 'save_options' ) );
-		add_action( 'admin_menu', array( $this, 'admin_menu' ) );
 		/**
 		 * Edit post metabox
 		 */
@@ -114,7 +117,6 @@ class Backend {
 	}
 
 	public function bulk_action_handler( $redirect, $doaction, $object_ids ) {
-
 		/**
 		 * Let's remove query args first
 		 */
@@ -131,6 +133,7 @@ class Backend {
 		 * Do something for "Make Draft" bulk action
 		 */
 		$exclude = ( 'se_hide' === $doaction );
+
 		$this->save_post_ids_to_search_exclude( $object_ids, $exclude );
 
 		$redirect = add_query_arg(
@@ -143,7 +146,6 @@ class Backend {
 	}
 
 	public function bulk_edit( $bulk_array ) {
-
 		$bulk_array['se_hide'] = esc_html__( 'Hide from Search', 'search-exclude' );
 		$bulk_array['se_show'] = esc_html__( 'Show in Search', 'search-exclude' );
 
@@ -167,9 +169,9 @@ class Backend {
 		$excluded        = $settings_entity->get( 'excluded' );
 
 		if ( $exclude ) {
-			$settings_entity->set( 'excluded', array_unique( array_merge( $excluded, $post_ids ) ) );
+			$settings_entity->set( 'excluded', array_values( array_unique( array_merge( $excluded, $post_ids ) ) ) );
 		} else {
-			$settings_entity->set( 'excluded', array_diff( $excluded, $post_ids ) );
+			$settings_entity->set( 'excluded', array_values( array_diff( $excluded, $post_ids ) ) );
 
 		}
 
@@ -187,29 +189,75 @@ class Backend {
 		include QLSE_PLUGIN_DIR . '/lib/views/' . $view . '.php';
 	}
 
-	public function enqueue_scripts() {
+	public function register_scripts() {
+		global $wp_version;
 
 		$backend = include QLSE_PLUGIN_DIR . 'build/backend/js/index.asset.php';
+		$store   = include QLSE_PLUGIN_DIR . 'build/store/js/index.asset.php';
 
-		wp_enqueue_script(
-			'search-exclude-backend',
+		wp_register_script(
+			'qlse-backend',
 			plugins_url( '/build/backend/js/index.js', QLSE_PLUGIN_FILE ),
 			array_merge(
 				$backend['dependencies'],
 				array( 'inline-edit-post' )
 			),
+			$backend['dependencies'],
 			$backend['version'],
 			true
 		);
+
+		// wp_register_style(
+		// 'qlse-backend',
+		// plugins_url( '/build/backend/css/style.css', QLSE_PLUGIN_FILE ),
+		// array(),
+		// QLSE_PLUGIN_VERSION
+		// );
+
+		wp_register_script(
+			'qlse-store',
+			plugins_url( '/build/store/js/index.js', QLSE_PLUGIN_FILE ),
+			$store['dependencies'],
+			$store['version'],
+			true
+		);
+
+		wp_localize_script(
+			'qlse-store',
+			'qlseStore',
+			array(
+				'WP_VERSION'       => $wp_version,
+				'QLSE_REST_ROUTES' => array(
+					'excluded' => API_Settings_Get::get_rest_path(),
+				),
+			)
+		);
+	}
+
+	public function enqueue_scripts() {
+		$current_screen  = get_current_screen()->id;
+		$allowed_screens = array( 'edit-page', 'edit-post', 'settings_page_search_exclude' );
+
+		if (
+			! in_array( $current_screen, $allowed_screens ) ) {
+		return;
+		}
+
+		/**
+		 * Load admin scripts
+		 */
+		wp_enqueue_media();
+		wp_enqueue_style( 'qlse-backend' );
+		wp_enqueue_script( 'qlse-backend' );
 	}
 
 	public function enqueue_style() {
-		wp_enqueue_style(
-			'search-exclude-backend',
-			plugins_url( '/build/backend/css/style.css', QLSE_PLUGIN_FILE ),
-			array(),
-			QLSE_PLUGIN_VERSION
-		);
+	wp_enqueue_style(
+		'qlse-backend',
+		plugins_url( '/build/backend/css/style.css', QLSE_PLUGIN_FILE ),
+		array(),
+		QLSE_PLUGIN_VERSION
+	);
 	}
 
 	public function add_quick_edit_custom_box( $column_name ) {
@@ -237,8 +285,13 @@ class Backend {
 
 	public function add_meta_box() {
 		$current_screen = get_current_screen();
-		/* Do not show meta box on service pages */
+		// Do not show meta box on service pages.
 		if ( empty( $current_screen->post_type ) ) {
+			return;
+		}
+		// Check if this is the Gutenberg editor.
+		if ( function_exists( 'use_block_editor_for_post_type' ) && use_block_editor_for_post_type( $current_screen->post_type ) ) {
+			// This is the Gutenberg editor, don't add the meta box.
 			return;
 		}
 		add_meta_box( 'sep_metabox_id', 'Search Exclude', array( $this, 'metabox' ), null, 'side' );
@@ -248,17 +301,6 @@ class Backend {
 		wp_nonce_field( 'sep_metabox_nonce', 'metabox_nonce' );
 		$this->view( 'metabox', array( 'exclude' => $this->is_excluded( $post->ID ) ) );
 	}
-
-	public function admin_menu() {
-		add_options_page(
-			'Search Exclude',
-			'Search Exclude',
-			'manage_options',
-			'search_exclude',
-			array( $this, 'options' )
-		);
-	}
-
 
 	public function post_save( $post_id ) {
 		if ( ! isset( $_POST['sep'] ) ) {
@@ -274,9 +316,9 @@ class Backend {
 	}
 
 	public function options() {
-		$excluded = Models_Settings::instance()->get()->get( 'excluded' );
-
-		$query = new \WP_Query(
+		$settings_entity = Models_Settings::instance()->get();
+		$excluded        = $settings_entity->get( 'excluded' );
+		$query           = new \WP_Query(
 			array(
 				'post_type'   => 'any',
 				'post_status' => 'any',
